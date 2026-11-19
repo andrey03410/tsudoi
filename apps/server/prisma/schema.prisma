@@ -1,0 +1,136 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Actor {
+  id           String       @id @default(uuid())
+  login        String?      @unique
+  displayName  String
+  passwordHash String?
+  role         String
+  createdAt    DateTime     @default(now())
+  sessions     Session[]
+  ownedChats   Chat[]
+  memberships  Membership[]
+  invites      Invite[]
+  messages     Message[]
+  reactions    Reaction[]
+  uploads      Attachment[]
+}
+
+model Session {
+  tokenHash String   @id
+  actorId   String
+  expiresAt DateTime
+  actor     Actor    @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([expiresAt])
+}
+
+model Invite {
+  id          String    @id @default(uuid())
+  tokenHash   String    @unique
+  kind        String
+  chatId      String?
+  createdById String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  revokedAt   DateTime?
+  chat        Chat?     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  createdBy   Actor     @relation(fields: [createdById], references: [id])
+
+  @@index([kind, chatId])
+}
+
+model Chat {
+  id          String       @id @default(uuid())
+  kind        String
+  title       String?
+  directKey   String?      @unique
+  ownerId     String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  owner       Actor        @relation(fields: [ownerId], references: [id])
+  memberships Membership[]
+  invites     Invite[]
+  messages    Message[]
+  attachments Attachment[]
+  events      ChatEvent[]
+}
+
+model Membership {
+  chatId         String
+  actorId        String
+  firstVisibleId Int       @default(0)
+  lastReadId     Int       @default(0)
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  actor          Actor     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  chat           Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, actorId])
+  @@index([actorId])
+}
+
+model Message {
+  id          Int          @id @default(autoincrement())
+  chatId      String
+  authorId    String
+  clientId    String
+  text        String?
+  stickerId   String?
+  createdAt   DateTime     @default(now())
+  author      Actor        @relation(fields: [authorId], references: [id])
+  chat        Chat         @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+  reactions   Reaction[]
+  events      ChatEvent[]
+
+  @@unique([chatId, authorId, clientId])
+  @@index([chatId, id])
+}
+
+model Reaction {
+  messageId Int
+  actorId   String
+  emoji     String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  actor     Actor   @relation(fields: [actorId], references: [id])
+
+  @@id([messageId, actorId, emoji])
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  chatId       String
+  uploadedById String
+  messageId    Int?
+  name         String
+  mime         String
+  size         Int
+  createdAt    DateTime @default(now())
+  chat         Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  uploadedBy   Actor    @relation(fields: [uploadedById], references: [id])
+  message      Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([uploadedById, chatId])
+}
+
+model ChatEvent {
+  id        Int      @id @default(autoincrement())
+  chatId    String
+  messageId Int
+  createdAt DateTime @default(now())
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, id])
+}

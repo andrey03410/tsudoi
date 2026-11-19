@@ -4,6 +4,9 @@ dist/
 coverage/
 .vite/
 *.tsbuildinfo
+apps/server/src/generated/
+playwright-report/
+test-results/
 
 # Local environment and credentials
 .env

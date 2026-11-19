@@ -7,6 +7,7 @@ const repoRoot = resolve(root, "../..");
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, repoRoot, "TSUDOI_");
+  const backend = { target: `http://127.0.0.1:${env.TSUDOI_PORT ?? "8791"}`, changeOrigin: false };
 
   return {
     root,
@@ -16,7 +17,9 @@ export default defineConfig(({ mode }) => {
       port: Number(env.TSUDOI_WEB_PORT ?? "5175"),
       strictPort: true,
       proxy: {
-        "/health": `http://127.0.0.1:${env.TSUDOI_PORT ?? "8791"}`,
+        "/health": backend,
+        "/api": backend,
+        "/ws": { ...backend, ws: true },
       },
     },
   };
