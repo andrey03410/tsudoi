@@ -2,9 +2,9 @@
 id: "01"
 title: Первая версия мессенджера
 track: product
-stage: build
+stage: review
 branch: codex/01-mvp
-pr: null
+pr: https://github.com/andrey03410/tsudoi/pull/1
 started: 2026-11-19
 merged: null
 ---
