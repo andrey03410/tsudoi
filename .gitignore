@@ -1,0 +1,29 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+
+# User media, databases, temporary files and verification evidence
+storage/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Logs, editors and operating systems
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

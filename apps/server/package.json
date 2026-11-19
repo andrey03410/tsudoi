@@ -1,0 +1,10 @@
+{
+  "name": "@tsudoi/server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@fastify/static": "^10.1.10",
+    "fastify": "^5.12.8"
+  }
+}

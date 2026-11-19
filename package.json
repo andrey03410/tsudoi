@@ -1,0 +1,24 @@
+{
+  "name": "tsudoi",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": {
+    "node": ">=24.11 <25"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,web npm:dev:server npm:dev:web",
+    "dev:server": "tsx watch --env-file-if-exists=.env apps/server/src/main.ts",
+    "dev:web": "vite --config apps/web/vite.config.ts",
+    "build": "tsc -p apps/server/tsconfig.build.json && vite build --config apps/web/vite.config.ts",
+    "start": "node --env-file-if-exists=.env apps/server/dist/main.js --serve-web",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "concurrently": "^10.0.6",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3"
+  }
+}
