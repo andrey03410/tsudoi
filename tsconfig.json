@@ -10,6 +10,6 @@
     "noEmitOnError": true,
     "skipLibCheck": true
   },
-  "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts"],
+  "include": ["apps/**/*.ts", "apps/**/*.tsx", "packages/**/*.ts", "prisma.config.ts", "playwright.config.ts"],
   "exclude": ["**/dist"]
 }

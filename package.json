@@ -13,11 +13,20 @@
     "dev:web": "vite --config apps/web/vite.config.ts",
     "build": "tsc -p apps/server/tsconfig.build.json && vite build --config apps/web/vite.config.ts",
     "start": "node --env-file-if-exists=.env apps/server/dist/main.js --serve-web",
+    "admin": "tsx --env-file-if-exists=.env apps/server/src/admin.ts",
+    "test": "tsx --test apps/server/src/*.test.ts apps/web/src/*.test.mjs",
+    "test:e2e": "playwright test",
+    "db:generate": "prisma generate",
+    "postinstall": "npm run db:generate",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.1",
     "concurrently": "^10.0.6",
+    "prisma": "7.10.1",
     "tsx": "^4.23.15",
     "typescript": "~5.9.3"
   }
