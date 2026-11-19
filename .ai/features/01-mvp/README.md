@@ -2,11 +2,11 @@
 id: "01"
 title: Первая версия мессенджера
 track: product
-stage: review
+stage: merged
 branch: codex/01-mvp
 pr: https://github.com/andrey03410/tsudoi/pull/1
 started: 2026-11-19
-merged: null
+merged: 2026-11-19
 ---
 
 # 01. Первая версия мессенджера
@@ -20,8 +20,8 @@ merged: null
 - [x] [Технические решения](tech.md).
 - [x] [План](plan.md).
 - [x] [Реализация и проверки](verify.md).
-- [ ] Проверка владельцем.
-- [ ] Влито.
+- [x] Ревью и приёмка в разрешённом автономном режиме.
+- [x] Влито через [PR #1](https://github.com/andrey03410/tsudoi/pull/1).
 
 ## Подтверждение владельца
 
