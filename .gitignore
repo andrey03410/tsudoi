@@ -30,3 +30,9 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+/deploy/env/
+/deploy/data/
+/deploy/backups/
+/deploy/images.env
+/deploy/.release.lock

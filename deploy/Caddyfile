@@ -1,0 +1,57 @@
+{
+	acme_ca {$ACME_CA:https://acme-v02.api.letsencrypt.org/directory}
+}
+
+(friends_site) {
+	basic_auth {
+		friends {$FRIENDS_PASSWORD_HASH}
+	}
+	reverse_proxy {args[0]} {
+		header_up -Authorization
+	}
+}
+
+{$PUBLIC_HOST} {
+	handle /health {
+		reverse_proxy tsudoi:8791
+	}
+	handle {
+		import friends_site tsudoi:8791
+	}
+}
+
+{$PUBLIC_HOST}:8443 {
+	@mcp path /mcp /api/uploads/*
+	handle @mcp {
+		reverse_proxy hibiki:8790
+	}
+	@jobDownload {
+		path /api/jobs/*/download
+		header Authorization "Bearer *"
+	}
+	handle @jobDownload {
+		reverse_proxy hibiki:8790
+	}
+	handle {
+		import friends_site hibiki:8790
+	}
+}
+
+{$PUBLIC_HOST}:8444 {
+	handle /api/mcp {
+		reverse_proxy douga:3000
+	}
+	handle {
+		import friends_site douga:3000
+	}
+}
+
+{$PUBLIC_HOST}:8445 {
+	@mcp path /mcp /api/uploads/*
+	handle @mcp {
+		reverse_proxy asobiba:8787
+	}
+	handle {
+		import friends_site asobiba:8787
+	}
+}

@@ -1,0 +1,81 @@
+name: friends
+
+x-app: &app
+  restart: unless-stopped
+  init: true
+  logging:
+    options:
+      max-size: 10m
+      max-file: '3'
+
+services:
+  caddy:
+    <<: *app
+    image: caddy:2-alpine
+    env_file:
+      - path: ./env/caddy.env
+        format: raw
+    ports:
+      - '80:80'
+      - '443:443'
+      - '8443:8443'
+      - '8444:8444'
+      - '8445:8445'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      default:
+        ipv4_address: 172.26.10.2
+
+  tsudoi:
+    <<: *app
+    image: ghcr.io/${IMAGE_OWNER}/tsudoi:${TSUDOI_TAG:-bootstrap}
+    env_file: [./env/tsudoi.env]
+    volumes:
+      - ./data/tsudoi:/app/storage
+
+  hibiki:
+    <<: *app
+    image: ghcr.io/${IMAGE_OWNER}/hibiki:${HIBIKI_TAG:-bootstrap}
+    env_file: [./env/hibiki.env]
+    volumes:
+      - ./data/hibiki:/app/storage
+
+  hibiki-worker:
+    <<: *app
+    image: ghcr.io/${IMAGE_OWNER}/hibiki:${HIBIKI_TAG:-bootstrap}
+    env_file: [./env/hibiki.env]
+    volumes:
+      - ./data/hibiki:/app/storage
+    command: [node, --import, tsx, apps/worker/src/main.ts]
+    depends_on:
+      hibiki:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+
+  douga:
+    <<: *app
+    image: ghcr.io/${IMAGE_OWNER}/douga:${DOUGA_TAG:-bootstrap}
+    env_file: [./env/douga.env]
+    volumes:
+      - ./data/douga:/app/storage
+
+  asobiba:
+    <<: *app
+    image: ghcr.io/${IMAGE_OWNER}/asobiba:${ASOBIBA_TAG:-bootstrap}
+    env_file: [./env/asobiba.env]
+    volumes:
+      - ./data/asobiba:/workspace/asobiba/storage
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.26.10.0/24
+
+volumes:
+  caddy-data:
+  caddy-config:
