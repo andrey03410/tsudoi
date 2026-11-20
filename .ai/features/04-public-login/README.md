@@ -2,11 +2,11 @@
 id: 04
 title: Страницы входа без общего пароля
 track: tech
-stage: review
+stage: merged
 branch: codex/04-public-login
-pr:
+pr: https://github.com/andrey03410/tsudoi/pull/4
 started: 2026-11-20
-merged:
+merged: 2026-11-20
 ---
 
 # 04. Страницы входа без общего пароля
@@ -17,4 +17,4 @@ merged:
 - [x] [Техника](tech.md)
 - [x] [План](plan.md)
 - [x] [Реализация и QG](verify.md)
-- [ ] Влито
+- [x] Влито
