@@ -2,7 +2,7 @@
 id: 02
 title: Деплой tsudoi на VPS
 track: tech
-stage: plan
+stage: build
 branch: codex/02-docker-deploy
 pr:
 started: 2026-11-20
@@ -19,7 +19,7 @@ merged:
 
 - [x] Бриф — [brief.md](brief.md)
 - [x] Техника — [tech.md](tech.md)
-- [ ] План — [plan.md](plan.md)
+- [x] План — [plan.md](plan.md)
 - [ ] Реализация и QG — [verify.md](verify.md)
 - [ ] Влито
 - [ ] Выложено на VPS
