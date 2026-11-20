@@ -2,11 +2,11 @@
 id: 02
 title: Деплой tsudoi на VPS
 track: product
-stage: review
+stage: merged
 branch: codex/02-docker-deploy
 pr: https://github.com/andrey03410/tsudoi/pull/2
 started: 2026-11-20
-merged:
+merged: 2026-11-20
 ---
 
 # 02. Деплой tsudoi на VPS
@@ -22,5 +22,5 @@ merged:
 - [x] Техника — [tech.md](tech.md)
 - [x] План — [plan.md](plan.md)
 - [x] Реализация и QG — [verify.md](verify.md)
-- [ ] Влито
+- [x] Влито
 - Деплой — статус среды `production` в GitHub Actions.
