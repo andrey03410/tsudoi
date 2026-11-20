@@ -1,0 +1,25 @@
+---
+id: 02
+title: Деплой tsudoi на VPS
+track: tech
+stage: tech
+branch: codex/02-docker-deploy
+pr:
+started: 2026-11-20
+merged:
+---
+
+# 02. Деплой tsudoi на VPS
+
+Собирает и запускает Tsudoi, хранит общий Compose, Caddy и серверный сценарий выкладки.
+
+Автономный режим. «Все правки в репах делай через /feature автономно вплоть до подлива в main и конечного деплоя».
+
+## Стадии
+
+- [x] Бриф — [brief.md](brief.md)
+- [ ] Техника — [tech.md](tech.md)
+- [ ] План — [plan.md](plan.md)
+- [ ] Реализация и QG — [verify.md](verify.md)
+- [ ] Влито
+- [ ] Выложено на VPS
