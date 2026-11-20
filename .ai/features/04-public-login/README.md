@@ -2,7 +2,7 @@
 id: 04
 title: Страницы входа без общего пароля
 track: tech
-stage: tech
+stage: build
 branch: codex/04-public-login
 pr:
 started: 2026-11-20
@@ -15,6 +15,6 @@ merged:
 
 - [x] [Бриф](brief.md)
 - [x] [Техника](tech.md)
-- [ ] [План](plan.md)
+- [x] [План](plan.md)
 - [ ] [Реализация и QG](verify.md)
 - [ ] Влито
