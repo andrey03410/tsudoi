@@ -8,13 +8,13 @@
 
 | Файл | Параметры |
 |---|---|
-| `env/caddy.env` | `PUBLIC_HOST` и `FRIENDS_PASSWORD_HASH` из `caddy hash-password` |
+| `env/caddy.env` | `PUBLIC_HOST`, при необходимости `ACME_CA` |
 | `env/tsudoi.env` | `TSUDOI_ORIGIN=https://<host>`, `TSUDOI_TRUST_PROXY=172.26.10.2` |
 | `env/hibiki.env` | `PUBLIC_URL=https://<host>:8443` |
 | `env/douga.env` | `AUTH_URL=https://<host>:8444`, `DOUGA_PUBLIC_URL=https://<host>:8444`, `AUTH_TRUST_HOST=true`, случайный `AUTH_SECRET`, `DATABASE_URL=file:/app/storage/douga.db` |
 | `env/asobiba.env` | `PUBLIC_URL=https://<host>:8445`, `COOKIE_SECURE=1`, `DOUGA_URL=http://douga:3000` |
 
-Доступ к сайтам требует общей учётной записи `friends` на Caddy, затем личного аккаунта приложения. MCP использует собственные токены, а `/health` Tsudoi доступен для проверки сети. Контейнеры закрывают веб-регистрацию и гостевой вход через `PROVISIONED_ACCOUNTS_ONLY=1`.
+Сайты открываются по HTTPS. Для работы пользователь входит под заранее созданным аккаунтом приложения. MCP использует собственные токены, а `/health` Tsudoi доступен для проверки сети. Контейнеры закрывают веб-регистрацию и гостевой вход через `PROVISIONED_ACCOUNTS_ONLY=1`.
 
 Создавайте аккаунты через `docker compose --env-file images.env exec -T <app> node --import tsx scripts/provision-account.ts <login> <role>`, передавая пароль через stdin. Для Douga добавьте перед `node` переменную `TSX_TSCONFIG_PATH=tsconfig.mcp.json` с помощью `exec -e`. Роли Asobiba — `admin` и `user`, роли Douga и Tsudoi — `admin` и `member`. У Hibiki опустите аргумент роли. Скрипты сохраняют хеши и оставляют существующие записи при повторном запуске.
 

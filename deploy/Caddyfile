@@ -2,10 +2,7 @@
 	acme_ca {$ACME_CA:https://acme-v02.api.letsencrypt.org/directory}
 }
 
-(friends_site) {
-	basic_auth {
-		friends {$FRIENDS_PASSWORD_HASH}
-	}
+(app_site) {
 	reverse_proxy {args[0]} {
 		header_up -Authorization
 	}
@@ -16,7 +13,7 @@
 		reverse_proxy tsudoi:8791
 	}
 	handle {
-		import friends_site tsudoi:8791
+		import app_site tsudoi:8791
 	}
 }
 
@@ -33,7 +30,7 @@
 		reverse_proxy hibiki:8790
 	}
 	handle {
-		import friends_site hibiki:8790
+		import app_site hibiki:8790
 	}
 }
 
@@ -42,7 +39,7 @@
 		reverse_proxy douga:3000
 	}
 	handle {
-		import friends_site douga:3000
+		import app_site douga:3000
 	}
 }
 
@@ -52,6 +49,6 @@
 		reverse_proxy asobiba:8787
 	}
 	handle {
-		import friends_site asobiba:8787
+		import app_site asobiba:8787
 	}
 }
