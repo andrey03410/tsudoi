@@ -2,9 +2,9 @@
 id: 03
 title: Проверка воркера Hibiki при деплое
 track: tech
-stage: build
+stage: review
 branch: codex/03-hibiki-worker-health
-pr:
+pr: https://github.com/andrey03410/tsudoi/pull/3
 started: 2026-11-20
 merged:
 ---
@@ -14,5 +14,5 @@ merged:
 - [x] [Бриф](brief.md)
 - [x] [Техника](tech.md)
 - [x] [План](plan.md)
-- [ ] [Реализация и QG](verify.md)
+- [x] [Реализация и QG](verify.md)
 - [ ] Влито
