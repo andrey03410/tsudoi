@@ -14,7 +14,10 @@ fi
 
 cd -- "$(dirname -- "$0")"
 exec 9>.release.lock
-flock -w 90 9
+if ! flock -w 600 9; then
+  echo 'Timed out waiting for another application release' >&2
+  exit 1
+fi
 
 services=("$app")
 if [[ "$app" == hibiki ]]; then
