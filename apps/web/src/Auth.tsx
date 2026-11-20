@@ -67,7 +67,7 @@ export function Auth({ actor, kind, token, onSession, notice }: AuthProps) {
               <ErrorNote message={error || notice}/>
               <button type="submit" className="primary auth-submit" disabled={busy}>{kind === "guest" ? "Войти в группу" : kind === "account" ? "Создать аккаунт" : "Войти"}{busy ? <LoaderCircle className="spin"/> : <ArrowRight size={18}/>}</button>
             </form>
-            <div className="auth-foot"><KeyRound size={16}/><span>{kind && preview ? "Приглашение действует до " + dateTime(preview.expiresAt) : "Регистрация по приглашению"}</span></div>
+            {import.meta.env.VITE_PROVISIONED_ACCOUNTS_ONLY !== "1" && <div className="auth-foot"><KeyRound size={16}/><span>{kind && preview ? "Приглашение действует до " + dateTime(preview.expiresAt) : "Регистрация по приглашению"}</span></div>}
           </>}
       </div></section>
     </div>
