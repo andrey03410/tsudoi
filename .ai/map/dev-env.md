@@ -22,3 +22,9 @@
 Для HTTPS за обратным прокси установи `TSUDOI_ORIGIN` в фактический внешний адрес, например `https://chat.example.org`. Этот адрес используется для проверки Origin и включает Secure cookies. Укажи IP или сеть своего прокси в `TSUDOI_TRUST_PROXY`, чтобы лимиты входа применялись по IP клиентов. Допустим список через запятую. Прокси перенаправляет обычные запросы и WebSocket на `/ws` на локальный порт Fastify. `GET /health` проверяет, что процесс отвечает.
 
 [Скилл verify](../../.claude/skills/verify/SKILL.md)
+
+## Деплой
+
+`Dockerfile` собирает Linux-образ tsudoi. Workflow `Production` проверяет запуск, публикует тег полного SHA в GHCR и выкатывает его по команде [deploy](../../.claude/skills/deploy/SKILL.md). Данные SQLite и медиа находятся в отдельном каталоге данных на сервере. HTTPS обслуживает Caddy на порту `443`.
+
+Образ включает режим `PROVISIONED_ACCOUNTS_ONLY=1`. Новые аккаунты создаёт администратор через `scripts/provision-account.ts`. Пароль передаётся через stdin.

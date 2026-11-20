@@ -38,8 +38,8 @@ function loginValue(value: unknown): string | null {
   return loginPattern.test(normalized) ? normalized : null;
 }
 
-function passwordValue(value: unknown): string | null {
-  return typeof value === "string" && value.length >= 8 && value.length <= 256 ? value : null;
+function passwordValue(value: unknown, minimumLength = 8): string | null {
+  return typeof value === "string" && value.length >= minimumLength && value.length <= 256 ? value : null;
 }
 
 export function requireCredentials(login: unknown, password: unknown): { login: string; password: string } {
@@ -180,6 +180,7 @@ function registerInviteManagement(app: FastifyInstance, context: AppContext, kin
   });
 
   app.post<{ Params: InviteParams }>(path, async (request, reply): Promise<IssuedInvite> => {
+    if (process.env.PROVISIONED_ACCOUNTS_ONLY === "1") fail(403, "REGISTRATION_CLOSED", "Аккаунты создаёт администратор.");
     const scope = scopeOf(request.params);
     const actor = await canManageInvites(context, request, scope);
     const now = context.now();
@@ -296,7 +297,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AppContext) {
   app.post("/api/login", { preHandler: attemptLimiter(context, 10) }, async (request, reply) => {
     const body = bodyRecord(request);
     const login = loginValue(body.login);
-    const password = passwordValue(body.password);
+    const password = passwordValue(body.password, process.env.PROVISIONED_ACCOUNTS_ONLY === "1" ? 1 : 8);
     if (!login || !password) invalidLogin();
     const actor = await context.db.actor.findUnique({ where: { login } });
     if (!await matchesPassword(password, actor?.passwordHash ?? null) || !actor || actor.role === "guest") invalidLogin();
@@ -338,10 +339,14 @@ export function registerAuthRoutes(app: FastifyInstance, context: AppContext) {
   registerInviteManagement(app, context, "guest", "/api/chats/:id/invites");
 
   app.post("/api/invites/preview", { preHandler: attemptLimiter(context, 30) }, async (request): Promise<InvitePreview> => {
+    if (process.env.PROVISIONED_ACCOUNTS_ONLY === "1") fail(403, "REGISTRATION_CLOSED", "Аккаунты создаёт администратор.");
     const entry = inviteInput(bodyRecord(request));
     const invite = await availableInvite(context.db, entry, context.now());
     return { kind: entry.kind, expiresAt: invite.expiresAt.toISOString(), chatId: invite.chat?.id, title: invite.chat?.title ?? undefined };
   });
 
-  app.post("/api/invites/accept", { preHandler: attemptLimiter(context, 10) }, (request, reply) => acceptInvite(request, reply, context));
+  app.post("/api/invites/accept", { preHandler: attemptLimiter(context, 10) }, (request, reply) => {
+    if (process.env.PROVISIONED_ACCOUNTS_ONLY === "1") fail(403, "REGISTRATION_CLOSED", "Аккаунты создаёт администратор.");
+    return acceptInvite(request, reply, context);
+  });
 }

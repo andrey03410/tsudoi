@@ -120,7 +120,7 @@ export function Members({ detail, actor, refresh, close }: { detail: ChatDetail;
     <div className="people-list">{detail.members.map(person => <div key={person.id} className="person-row"><Avatar small name={person.displayName}/><div><strong>{person.displayName}</strong>{person.role === "guest" && <small>Гость</small>}</div>
       {detail.isOwner && person.id !== actor.id && (confirm === person.id ? <div className="row-confirm"><button className="text-button danger" disabled={busy} onClick={() => void change(person.id, true)}>Удалить</button><button className="text-button" onClick={() => setConfirm("")}>Отмена</button></div> : <IconButton label={"Удалить " + person.displayName} onClick={() => setConfirm(person.id)}><UserMinus/></IconButton>)}</div>)}</div>
     {detail.isOwner && <>{candidates.length > 0 && <form className="fields subsection" onSubmit={e => { e.preventDefault(); if (added) void change(added, false); }}><label>Добавить участника<select value={added} onChange={e => setAdded(e.target.value)}><option value="">Выберите участника</option>{candidates.map(person => <option key={person.id} value={person.id}>{person.displayName}</option>)}</select></label><button className="secondary" disabled={busy || !added}><Plus/>Добавить</button></form>}
-      <div className="subsection"><h3>Гостевые приглашения</h3><Invitations groupId={detail.id}/></div></>}
+      {import.meta.env.VITE_PROVISIONED_ACCOUNTS_ONLY !== "1" && <div className="subsection"><h3>Гостевые приглашения</h3><Invitations groupId={detail.id}/></div>}</>}
     <ErrorNote message={error}/>
   </Modal>;
 }

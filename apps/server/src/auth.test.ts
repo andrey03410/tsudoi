@@ -7,6 +7,7 @@ import type { IssuedInvite } from "@tsudoi/contracts";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "./app.js";
 import { bootstrapAdmin } from "./admin.js";
+import { hashPassword } from "./auth.js";
 import { openDatabase } from "./db.js";
 
 const adminCredentials = {
@@ -221,4 +222,27 @@ test("public login rejects repeated failed authentication and recovers after the
   assert.equal((await attempt()).statusCode, 429);
   advance(5 * 60 * 1000);
   await login(app);
+});
+
+test("managed accounts prevent invite redemption and allow a provisioned login", async (t) => {
+  const { app, db } = await fixture(t);
+  const cookie = (await login(app)).split(";", 1)[0];
+  const { token } = await issueInvite(app, "/api/invites/account", cookie);
+  const previous = process.env.PROVISIONED_ACCOUNTS_ONLY;
+  process.env.PROVISIONED_ACCOUNTS_ONLY = "1";
+  t.after(() => {
+    if (previous === undefined) delete process.env.PROVISIONED_ACCOUNTS_ONLY;
+    else process.env.PROVISIONED_ACCOUNTS_ONLY = previous;
+  });
+  const rejected = await app.inject({ method: "POST", url: "/api/invites/accept", payload: {
+    kind: "account", token, ...memberCredentials,
+  } });
+  assert.equal(rejected.statusCode, 403);
+  const shortPassword = "sample";
+  await db.actor.create({ data: {
+    login: "provisioned", displayName: "Участник", role: "member", passwordHash: await hashPassword(shortPassword),
+  } });
+  const signedIn = await app.inject({ method: "POST", url: "/api/login", payload: { login: "provisioned", password: shortPassword } });
+  assert.equal(signedIn.statusCode, 200, signedIn.body);
+  assert.equal(signedIn.json().actor.role, "member");
 });
