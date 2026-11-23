@@ -9,3 +9,9 @@
 | 2026-11-20 | [Страницы входа без общего пароля](features/04-public-login/README.md) через [PR #4](https://github.com/andrey03410/tsudoi/pull/4). Caddy показывает вход приложения по HTTPS. |
 
 Заготовка проверена на Node.js 24.21.0. Успешно выполнены `npm ci`, `npm run build` и `npm run typecheck`. В `npm run dev` и `npm start` HTTP-проверка получила страницу Tsudoi, клиентский модуль и ответ `/health`. Для dev проверены прямой запрос к Fastify и запрос через Vite.
+
+## 2026-11-23 · Единый вход, права площадки и квоты групп и вложений
+
+[Задача](features/05-kaname/README.md) · [Приёмка](features/05-kaname/verify.md)
+
+[Задача 06](features/06-realtime-availability/README.md) сохраняет доставку событий другим соединениям при ошибке проверки прав одного участника.

@@ -1,6 +1,7 @@
 ---
 track: tech
-stage: review
+stage: merged
+merged: 2026-11-23
 branch: codex/06-realtime-availability
 pr: https://github.com/andrey03410/tsudoi/pull/6
 ---

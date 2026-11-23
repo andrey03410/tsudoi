@@ -1,6 +1,7 @@
 ---
 track: product
-stage: review
+stage: merged
+merged: 2026-11-23
 branch: codex/05-kaname
 pr: https://github.com/andrey03410/tsudoi/pull/5
 ---
