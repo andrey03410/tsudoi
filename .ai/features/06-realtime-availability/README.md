@@ -2,7 +2,7 @@
 track: tech
 stage: review
 branch: codex/06-realtime-availability
-pr: null
+pr: https://github.com/andrey03410/tsudoi/pull/6
 ---
 # 06. Доставка событий при ошибке Kaname
 
