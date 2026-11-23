@@ -18,6 +18,18 @@ export function registerRealtime(app: FastifyInstance, context: AppContext) {
     if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(event));
   };
 
+  async function checkedActor(socket: WebSocket, request: FastifyRequest) {
+    try {
+      const actor = await getActor(request, context);
+      if (!actor) socket.close(4001, "Access ended");
+      return actor;
+    } catch {
+      app.log.warn("WebSocket access check failed");
+      socket.close(1013, "Access check unavailable");
+      return null;
+    }
+  }
+
   const enqueue = (action: () => Promise<void>) => {
     queue = queue.then(action).catch((error: unknown) => {
       app.log.error(error, "Realtime notification failed");
@@ -40,10 +52,8 @@ export function registerRealtime(app: FastifyInstance, context: AppContext) {
     socket.on("pong", () => { connection.alive = true; });
 
     enqueue(async () => {
-      const actor = await getActor(request, context);
-      if (!actor) {
-        socket.close(4001, "Access ended");
-      } else if (actor.expiresAt && socket.readyState === socket.OPEN) {
+      const actor = await checkedActor(socket, request);
+      if (actor?.expiresAt && socket.readyState === socket.OPEN) {
         const delay = Math.max(0, Date.parse(actor.expiresAt) - context.now().getTime());
         if (delay < 2_147_483_647) {
           connection.expires = setTimeout(() => socket.close(4001, "Access ended"), delay);
@@ -60,10 +70,7 @@ export function registerRealtime(app: FastifyInstance, context: AppContext) {
         socket.terminate();
         continue;
       }
-      if (!await getActor(connection.request, context)) {
-        socket.close(4001, "Access ended");
-        continue;
-      }
+      if (!await checkedActor(socket, connection.request)) continue;
       connection.alive = false;
       if (socket.readyState === socket.OPEN) socket.ping();
     }
@@ -79,11 +86,8 @@ export function registerRealtime(app: FastifyInstance, context: AppContext) {
   context.notify = (chatId, additionalActorIds = []) => enqueue(async () => {
     for (const [socket, connection] of connections) {
       if (socket.readyState !== socket.OPEN) continue;
-      const actor = await getActor(connection.request, context);
-      if (!actor) {
-        socket.close(4001, "Access ended");
-        continue;
-      }
+      const actor = await checkedActor(socket, connection.request);
+      if (!actor) continue;
       const membership = chatId ? await context.db.membership.findFirst({
         where: {
           chatId,
