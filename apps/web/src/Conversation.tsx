@@ -1,3 +1,4 @@
+import { useKaname } from "./Kaname";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Actor, Attachment, ChatDetail, Message, MessagePage } from "@tsudoi/contracts";
 import { ArrowDown, ArrowLeft, Download, File, LoaderCircle, MessageCircle, Pause, Play, SmilePlus, UserRound, UsersRound } from "lucide-react";
@@ -25,7 +26,7 @@ function Media({ file }: { file: Attachment }) {
   return <a className="file-link" href={url + "?download=1"} download><File size={24}/><span><strong>{file.name}</strong><small>{fileSize(file.size)}</small></span><Download size={17}/></a>;
 }
 
-function Bubble({ msg, own, group, react }: { msg: Message; own: boolean; group: boolean; react: (id: number, emoji: string, active: boolean) => Promise<void> }) {
+function Bubble({ msg, own, group, react, guestTextOnly }: { guestTextOnly: boolean; msg: Message; own: boolean; group: boolean; react: (id: number, emoji: string, active: boolean) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const trigger = useRef<HTMLDivElement>(null);
@@ -53,11 +54,11 @@ function Bubble({ msg, own, group, react }: { msg: Message; own: boolean; group:
       <div className="reactions">{msg.reactions.map(r => {
         const guestCount = r.guestCount;
         const description = guestCount ? "Реакций от гостей: " + guestCount : undefined;
-        return <button key={r.emoji} className="reaction" disabled={busy} aria-pressed={r.mine} title={description} aria-description={description} onClick={() => void toggle(r.emoji)}>{r.emoji} {r.count}{guestCount > 0 && <span className="guest-reaction" aria-hidden="true"><UserRound size={11}/>{guestCount}</span>}</button>;
+        return <button key={r.emoji} className="reaction" disabled={busy || guestTextOnly} aria-pressed={r.mine} title={description} aria-description={description} onClick={() => void toggle(r.emoji)}>{r.emoji} {r.count}{guestCount > 0 && <span className="guest-reaction" aria-hidden="true"><UserRound size={11}/>{guestCount}</span>}</button>;
       })}
-        <div className="reaction-menu" ref={trigger}><IconButton label="Добавить реакцию" disabled={busy} aria-expanded={open} onClick={() => setOpen(!open)}><SmilePlus size={15}/></IconButton>
+        {!guestTextOnly && <div className="reaction-menu" ref={trigger}><IconButton label="Добавить реакцию" disabled={busy} aria-expanded={open} onClick={() => setOpen(!open)}><SmilePlus size={15}/></IconButton>
           {open && <div className="emoji-panel">{emojis.map(emoji => <button key={emoji} aria-label={emoji} aria-pressed={msg.reactions.some(r => r.emoji === emoji && r.mine)} onClick={() => void toggle(emoji)}>{emoji}</button>)}</div>}
-        </div>
+        </div>}
       </div>
     </div>
   </article>;
@@ -68,6 +69,8 @@ interface ConversationProps {
 }
 
 export function Conversation({ id, actor, signal, online, listChanged, denied }: ConversationProps) {
+  const kaname = useKaname();
+  const guestTextOnly = !!kaname?.enabled && actor.role === "guest";
   const path = chatApi(id);
   const [detail, setDetail] = useState<ChatDetail | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -206,10 +209,10 @@ export function Conversation({ id, actor, signal, online, listChanged, denied }:
         {older && <button className="load-older" onClick={() => void earlier()} disabled={paging}>{paging ? "Загружаем…" : "Загрузить предыдущие сообщения"}</button>}
         {!loaded && !error && <p className="history-status" role="status"><LoaderCircle className="spin"/>Загружаем сообщения…</p>}
         {loaded && messages.length === 0 && <div className="empty-chat"><span className="empty-icon"><MessageCircle/></span><h2>Пока нет сообщений</h2><p>Напишите первое сообщение.</p></div>}
-        {messages.map((msg, index) => <div key={msg.id} className="message-row">{(index === 0 || day(messages[index - 1].createdAt) !== day(msg.createdAt)) && <div className="day-divider"><span>{day(msg.createdAt)}</span></div>}<Bubble msg={msg} own={msg.author.id === actor.id} group={Boolean(group)} react={react}/></div>)}
+        {messages.map((msg, index) => <div key={msg.id} className="message-row">{(index === 0 || day(messages[index - 1].createdAt) !== day(msg.createdAt)) && <div className="day-divider"><span>{day(msg.createdAt)}</span></div>}<Bubble msg={msg} own={msg.author.id === actor.id} group={Boolean(group)} react={react} guestTextOnly={guestTextOnly}/></div>)}
       </div>
     </div>{jump && <button className="jump" onClick={bottom}><ArrowDown size={16}/>К последним</button>}</div>
-    {detail && <Composer chatId={id} sent={() => { bottom(); sync.current(); listChanged(); }}/>}
+    {detail && <Composer guestTextOnly={guestTextOnly} fileLimit={kaname?.enabled ? 25_000_000 : 25 * 1024 * 1024} chatId={id} sent={() => { bottom(); sync.current(); listChanged(); }}/>}
     {members && detail && <Members detail={detail} actor={actor} refresh={refreshDetail} close={() => setMembers(false)}/>}
   </main>;
 }

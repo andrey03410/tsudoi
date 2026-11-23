@@ -11,7 +11,7 @@ interface DraftFile {
 }
 interface Pending { clientId: string; text?: string; stickerId?: string; attachmentIds?: string[] }
 
-export function Composer({ chatId, sent }: { chatId: string; sent: (message: Message) => void }) {
+export function Composer({ chatId, sent, guestTextOnly, fileLimit }: { chatId: string; guestTextOnly: boolean; fileLimit: number; sent: (message: Message) => void }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<DraftFile[]>([]);
   const entries = useRef<DraftFile[]>([]);
@@ -52,7 +52,7 @@ export function Composer({ chatId, sent }: { chatId: string; sent: (message: Mes
     return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", escape); };
   }, [panel]);
   async function upload(row: DraftFile) {
-    if (row.file.size > 25 * 1024 * 1024) { updateFile(row.key, { error: "Файл больше 25 МиБ" }); return; }
+    if (row.file.size > fileLimit) { updateFile(row.key, { error: fileLimit === 25_000_000 ? "Файл больше 25 МБ" : "Файл больше 25 МиБ" }); return; }
     try {
       const attachment = await uploadFile(chatId, row.file, progress => updateFile(row.key, { progress }), row.controller.signal);
       if (alive.current && entries.current.some(item => item.key === row.key)) updateFile(row.key, { attachment, progress: 100 });
@@ -107,7 +107,7 @@ export function Composer({ chatId, sent }: { chatId: string; sent: (message: Mes
       {!!files.length && <div className="draft-files">{files.map(row => <div className="draft-item" key={row.key}>
         {row.preview ? <img alt="" src={row.preview}/> : <File size={20}/>}
         <div><strong>{row.file.name}</strong><small>{row.error || (row.attachment ? fileSize(row.file.size) : "Загрузка " + row.progress + "%")}</small></div>
-        {row.error && row.file.size <= 25 * 1024 * 1024 && <IconButton disabled={locked} label={"Повторить загрузку " + row.file.name} onClick={() => { updateFile(row.key, { error: undefined, progress: 0 }); void upload(row); }}><RotateCw/></IconButton>}
+        {row.error && row.file.size <= fileLimit && <IconButton disabled={locked} label={"Повторить загрузку " + row.file.name} onClick={() => { updateFile(row.key, { error: undefined, progress: 0 }); void upload(row); }}><RotateCw/></IconButton>}
         {row.attachment && <Check size={14}/>}
         <IconButton label={"Убрать " + row.file.name} disabled={locked} onClick={() => remove(row)}><X/></IconButton>
       </div>)}</div>}
@@ -118,13 +118,14 @@ export function Composer({ chatId, sent }: { chatId: string; sent: (message: Mes
           if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && matchMedia("(pointer:fine)").matches) { e.preventDefault(); void send(); }
         }}/>
         <div className="compose-actions">
-          <IconButton label="Прикрепить файл" disabled={locked} onClick={() => chooser.current?.click()}><Paperclip/></IconButton>
+          {!guestTextOnly && <><IconButton label="Прикрепить файл" disabled={locked} onClick={() => chooser.current?.click()}><Paperclip/></IconButton>
           <input ref={chooser} type="file" multiple hidden aria-label="Выбрать файлы" onChange={e => { pick(e.target.files); e.target.value = ""; }}/>
           <IconButton label="Прикрепить GIF" disabled={locked} onClick={() => gif.current?.click()}><span className="gif-mark">GIF</span></IconButton>
           <input ref={gif} type="file" accept="image/gif" hidden aria-label="Выбрать GIF" onChange={e => { pick(e.target.files); e.target.value = ""; }}/>
           <div className="sticker-menu" ref={stickerButton}><IconButton label="Стикеры" aria-expanded={panel} disabled={locked} onClick={() => setPanel(!panel)}><Sticker/></IconButton>
             {panel && <div className="sticker-panel"><h3>Стикеры</h3><div>{Object.entries(stickers).map(([id, name]) => <button type="button" key={id} aria-label={name} title={name} onClick={() => void send(id)}><img alt="" src={"/stickers/" + id + ".png"}/></button>)}</div></div>}
           </div>
+          </>}
           <span className="send-status" role="status">{busy && "Отправляем…"}</span>
           <button className="send-button" aria-label="Отправить" title="Отправить" disabled={locked || !ready}>{busy ? <LoaderCircle className="spin"/> : <ArrowUp size={21}/>}</button>
         </div>

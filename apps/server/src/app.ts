@@ -25,7 +25,9 @@ export async function createApp(options: AppOptions) {
   const origin = options.origin ? new URL(options.origin).origin : undefined;
   const storageDir = resolve(options.storageDir);
   const db = await openDatabase(storageDir);
-  const app = Fastify({ logger: options.logger ?? false, trustProxy: options.trustProxy ?? false });
+  const app = Fastify({ logger: options.logger ? { serializers: { req: request => ({
+    method: request.method, url: request.url?.split("?")[0], remoteAddress: request.ip,
+  }) } } : false, trustProxy: options.trustProxy ?? false });
   const context: AppContext = {
     db,
     storageDir,
@@ -50,6 +52,7 @@ export async function createApp(options: AppOptions) {
       return reply.code(error.status).send({ error: { code: error.code, message: error.message } });
     }
 
+    if ((error as {statusCode?:number}).statusCode === 503) return reply.code(503).send({error:{code:"ACCESS_UNAVAILABLE",message:"Проверка доступа временно недоступна."}});
     const info = error as { statusCode?: number; code?: string };
     if (info.statusCode && info.statusCode >= 400 && info.statusCode < 500) {
       const message = info.statusCode === 413 ? "Слишком большой запрос." : "Проверь данные запроса.";

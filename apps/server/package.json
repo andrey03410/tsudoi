@@ -8,6 +8,7 @@
     "@fastify/multipart": "^9.3.0",
     "@fastify/static": "^10.1.10",
     "@fastify/websocket": "^11.3.7",
+    "@kaname/service-client": "0.1.0",
     "@prisma/adapter-better-sqlite3": "7.10.1",
     "@prisma/client": "7.10.1",
     "@prisma/driver-adapter-utils": "7.10.1",

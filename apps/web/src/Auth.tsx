@@ -1,3 +1,4 @@
+import { useKaname } from "./Kaname";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { Actor, InviteAccepted, InviteKind, InvitePreview } from "@tsudoi/contracts";
@@ -8,6 +9,7 @@ import { Brand, ErrorNote, IconButton } from "./ui";
 interface AuthProps { actor: Actor | null; kind?: InviteKind; token: string; onSession: (actor: Actor) => void; notice: string }
 
 export function Auth({ actor, kind, token, onSession, notice }: AuthProps) {
+  const kaname = useKaname();
   const [preview, setPreview] = useState<InvitePreview | null>(null);
   const [invalid, setInvalid] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -56,7 +58,7 @@ export function Auth({ actor, kind, token, onSession, notice }: AuthProps) {
       <section className="auth-panel"><div className="auth-form">
         <div className="mobile-brand"><Brand/></div>
         <h1>{title}</h1>
-        {invalid ? <><p>Ссылка уже использована, отозвана или истекла. Попросите у пригласившего новую ссылку.</p><button className="primary" onClick={back}>Вернуться в Tsudoi</button></> :
+        {kaname?.enabled && !kind ? <a className="primary auth-submit" href={"/api/auth/kaname/login?next=" + encodeURIComponent(location.pathname)}>Войти через Kaname</a> : invalid ? <><p>Ссылка уже использована, отозвана или истекла. Попросите у пригласившего новую ссылку.</p><button className="primary" onClick={back}>Вернуться в Tsudoi</button></> :
           kind && !preview ? error ? <><ErrorNote message={error}/><button className="secondary" onClick={() => { setError(""); setLoadAttempt(n => n + 1); }}>Повторить</button></> : <p role="status">Проверяем приглашение…</p> :
           kind && actor ? <><p>Вы вошли как {actor.displayName}. Откройте приглашение в приватном окне или другом профиле браузера.</p><button className="primary" onClick={back}>К моим чатам</button></> :
           <><p className="auth-description">{kind === "guest" ? "Введите имя, которое увидят участники. Гостевой доступ действует 7 суток." : kind === "account" ? "По этому приглашению вы получите постоянный доступ к Tsudoi." : "Войдите в свой аккаунт Tsudoi."}</p>

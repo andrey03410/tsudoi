@@ -1,4 +1,5 @@
 {
+	default_sni {$KANAME_HOST}
 	acme_ca {$ACME_CA:https://acme-v02.api.letsencrypt.org/directory}
 }
 
@@ -9,6 +10,16 @@
 }
 
 {$PUBLIC_HOST} {
+	map {http.request.header.Cookie} {tsudoi_cookie_0} {
+		"~(?:^|;[ ]*)tsudoi_session=([^;]+)" "${1}"
+		default ""
+	}
+	map {http.request.header.Cookie} {tsudoi_cookie_1} {
+		"~(?:^|;[ ]*)kaname_flow_tsudoi=([^;]+)" "${1}"
+		default ""
+	}
+	request_header Cookie "tsudoi_session={tsudoi_cookie_0}; kaname_flow_tsudoi={tsudoi_cookie_1}"
+
 	handle /health {
 		reverse_proxy tsudoi:8791
 	}
@@ -18,6 +29,16 @@
 }
 
 {$PUBLIC_HOST}:8443 {
+	map {http.request.header.Cookie} {hibiki_cookie_0} {
+		"~(?:^|;[ ]*)hibiki_session=([^;]+)" "${1}"
+		default ""
+	}
+	map {http.request.header.Cookie} {hibiki_cookie_1} {
+		"~(?:^|;[ ]*)hibiki_oidc=([^;]+)" "${1}"
+		default ""
+	}
+	request_header Cookie "hibiki_session={hibiki_cookie_0}; hibiki_oidc={hibiki_cookie_1}"
+
 	@mcp path /mcp /api/uploads/*
 	handle @mcp {
 		reverse_proxy hibiki:8790
@@ -35,6 +56,32 @@
 }
 
 {$PUBLIC_HOST}:8444 {
+	map {http.request.header.Cookie} {douga_cookie_0} {
+		"~(?:^|;[ ]*)__Secure-authjs\.session-token=([^;]+)" "${1}"
+		default ""
+	}
+	map {http.request.header.Cookie} {douga_cookie_1} {
+		"~(?:^|;[ ]*)__Secure-authjs\.callback-url=([^;]+)" "${1}"
+		default ""
+	}
+	map {http.request.header.Cookie} {douga_cookie_2} {
+		"~(?:^|;[ ]*)__Secure-authjs\.pkce\.code_verifier=([^;]+)" "${1}"
+		default ""
+	}
+	map {http.request.header.Cookie} {douga_cookie_3} {
+		"~(?:^|;[ ]*)__Secure-authjs\.state=([^;]+)" "${1}"
+		default ""
+	}
+	map {http.request.header.Cookie} {douga_cookie_4} {
+		"~(?:^|;[ ]*)__Secure-authjs\.nonce=([^;]+)" "${1}"
+		default ""
+	}
+	map {http.request.header.Cookie} {douga_cookie_5} {
+		"~(?:^|;[ ]*)__Host-authjs\.csrf-token=([^;]+)" "${1}"
+		default ""
+	}
+	request_header Cookie "__Secure-authjs.session-token={douga_cookie_0}; __Secure-authjs.callback-url={douga_cookie_1}; __Secure-authjs.pkce.code_verifier={douga_cookie_2}; __Secure-authjs.state={douga_cookie_3}; __Secure-authjs.nonce={douga_cookie_4}; __Host-authjs.csrf-token={douga_cookie_5}"
+
 	handle /api/mcp {
 		reverse_proxy douga:3000
 	}
@@ -44,6 +91,16 @@
 }
 
 {$PUBLIC_HOST}:8445 {
+	map {http.request.header.Cookie} {asobiba_cookie_0} {
+		"~(?:^|;[ ]*)asobiba_session=([^;]+)" "${1}"
+		default ""
+	}
+	map {http.request.header.Cookie} {asobiba_cookie_1} {
+		"~(?:^|;[ ]*)kaname_flow_asobiba=([^;]+)" "${1}"
+		default ""
+	}
+	request_header Cookie "asobiba_session={asobiba_cookie_0}; kaname_flow_asobiba={asobiba_cookie_1}"
+
 	@mcp path /mcp /api/uploads/*
 	handle @mcp {
 		reverse_proxy asobiba:8787
@@ -51,4 +108,37 @@
 	handle {
 		import app_site asobiba:8787
 	}
+}
+
+{$PUBLIC_HOST}:8446 {
+  redir https://{$KANAME_HOST}:8446{uri} 302
+}
+
+(kaname_tls) {
+  tls {
+    issuer acme {
+      profile shortlived
+      disable_tlsalpn_challenge
+    }
+  }
+}
+
+https://{$KANAME_HOST}:8446 {
+  import kaname_tls
+  @internal path /internal/*
+  respond @internal 404
+  reverse_proxy kaname:3000 {
+    header_up Cookie "(^|;[ ]*)(AUTH_SESSION_ID|KC_RESTART|KEYCLOAK_[A-Z_]+)=[^;]*" ""
+  }
+}
+
+https://{$KANAME_HOST}:8447 {
+  import kaname_tls
+  @login path /realms/kaname/* /resources/* /.well-known/*
+  handle @login {
+    reverse_proxy kaname-id:8080 {
+      header_up Cookie "(^|;[ ]*)__Host-kaname-(session|flow)=[^;]*" ""
+    }
+  }
+  respond 404
 }

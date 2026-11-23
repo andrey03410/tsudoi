@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import type { Attachment } from "@tsudoi/contracts";
 import type { FastifyInstance } from "fastify";
+import { withOwnerPool } from "./pool-lock.js";
+import { kanameEnabled } from "@kaname/service-client";
+import type { SiteActor } from "./kaname.js";
 import { requireActor } from "./auth.js";
 import { membership } from "./chat-access.js";
 import type { AppContext } from "./context.js";
@@ -91,6 +94,11 @@ export function registerMediaRoutes(app: FastifyInstance, context: AppContext) {
   });
   app.post<{ Params: { id: string } }>("/api/chats/:id/uploads", async (request, reply) => {
     const actor = await requireActor(request, context);
+    if (kanameEnabled() && actor.role === "guest") fail(403, "guest_text", "Гостям доступна текстовая переписка.");
+    return withOwnerPool(actor.id, async () => {
+    const quota = (actor as SiteActor).grant?.limits.storageBytes;
+    const existing = quota == null ? 0 : (await context.db.attachment.aggregate({where:{uploadedById:actor.id},_sum:{size:true}}))._sum.size ?? 0;
+    const fileLimit = kanameEnabled() ? 25_000_000 : FILE_LIMIT;
     const chatId = request.params.id;
     await context.db.$transaction(tx => membership(tx, chatId, actor.id, context.now()));
     if (!request.isMultipart()) fail(400, "missing_file", "Выберите файл.");
@@ -110,6 +118,7 @@ export function registerMediaRoutes(app: FastifyInstance, context: AppContext) {
             const bytes = Buffer.from(chunk);
             if (head.length < 12) head = Buffer.concat([head, bytes.subarray(0, 12 - head.length)]);
             size += bytes.length;
+            if (size > fileLimit || quota != null && existing + size > quota) fail(413, "file_too_large", "Превышен лимит размера загрузки.");
             yield bytes;
           }
         }, createWriteStream(path, { flags: "wx", mode: 0o600 }));
@@ -118,9 +127,15 @@ export function registerMediaRoutes(app: FastifyInstance, context: AppContext) {
       }
       if (!metadata) fail(400, "missing_file", "Выберите файл.");
       const data = metadata;
+      const freshActor = kanameEnabled() ? await requireActor(request, context) as SiteActor : null;
+      const currentLimit = freshActor?.grant?.limits.storageBytes;
       const result = await context.db.$transaction(async tx => {
         const now = context.now();
         await membership(tx, chatId, actor.id, now);
+        if (currentLimit != null) {
+          const used = await tx.attachment.aggregate({where:{uploadedById:actor.id},_sum:{size:true}});
+          if ((used._sum.size ?? 0) + data.size > currentLimit) fail(409, "storage_quota", "Недостаточно свободного места в Tsudoi.");
+        }
         return tx.attachment.create({ data: { ...data, chatId, uploadedById: actor.id, createdAt: now }, select: publicFields });
       });
       return reply.code(201).send(result);
@@ -130,6 +145,7 @@ export function registerMediaRoutes(app: FastifyInstance, context: AppContext) {
     } finally {
       writing.delete(id);
     }
+    });
   });
 
   app.delete<{ Params: { uploadId: string } }>("/api/uploads/:uploadId", async request => {

@@ -1,5 +1,7 @@
+import { kanameEnabled } from "@kaname/service-client";
 import type { Actor, ChatKind, ChatSummary, Message, MessagePage, Reaction } from "@tsudoi/contracts";
 import type { FastifyInstance } from "fastify";
+import type { SiteActor } from "./kaname.js";
 import { requireActor } from "./auth.js";
 import { activeMembership, membership } from "./chat-access.js";
 import type { AppContext } from "./context.js";
@@ -143,7 +145,7 @@ export function registerChatRoutes(app: FastifyInstance, context: AppContext) {
     const {id, created} = await context.db.$transaction(async tx => {
       const existing = await tx.chat.findUnique({ where: { directKey }, select: { id: true } });
       if (existing) return { id: existing.id, created: false };
-      if (!await tx.actor.count({ where: { id: userId, role: { not: "guest" } } })) invalid();
+      if (!await tx.actor.count({ where: { id: userId, role: { not: "guest" }, ...(kanameEnabled() ? { kanameIssuer: process.env.KANAME_OIDC_ISSUER!, kanameSuspended: false } : {}) } })) invalid();
       const now = context.now();
       const chat = await tx.chat.create({
         data: { kind: "direct", directKey, ownerId: actor.id, createdAt: now, updatedAt: now,
@@ -161,7 +163,10 @@ export function registerChatRoutes(app: FastifyInstance, context: AppContext) {
     const title = stringValue(request.body?.title, 160);
     const ids = [...new Set([actor.id, ...stringIds(request.body?.memberIds ?? [])])];
     const chat = await context.db.$transaction(async tx => {
-      const count = await tx.actor.count({ where: { id: { in: ids }, role: { not: "guest" } } });
+      const limit = (actor as SiteActor).grant?.limits.groups;
+      if (limit != null && await tx.chat.count({where:{ownerId:actor.id, kind:"group"}}) >= limit)
+        fail(409, "group_limit", "Достигнут лимит своих групп.");
+      const count = await tx.actor.count({ where: { id: { in: ids }, role: { not: "guest" }, ...(kanameEnabled() ? { kanameIssuer: process.env.KANAME_OIDC_ISSUER!, kanameSuspended: false } : {}) } });
       if (count !== ids.length) invalid();
       const now = context.now();
       return tx.chat.create({ data: { kind: "group", title, ownerId: actor.id, createdAt: now, updatedAt: now,
@@ -177,7 +182,7 @@ export function registerChatRoutes(app: FastifyInstance, context: AppContext) {
     const actorId = stringValue(request.body?.actorId, 128);
     const changed = await context.db.$transaction(async tx => {
       requireOwner(await membership(tx, chatId, actor.id, context.now()));
-      if (!await tx.actor.count({ where: { id: actorId, role: { not: "guest" } } })) invalid();
+      if (!await tx.actor.count({ where: { id: actorId, role: { not: "guest" }, ...(kanameEnabled() ? { kanameIssuer: process.env.KANAME_OIDC_ISSUER!, kanameSuspended: false } : {}) } })) invalid();
       const where = { chatId_actorId: { chatId, actorId } };
       const existing = await tx.membership.findUnique({ where });
       if (existing && !existing.revokedAt) return false;
@@ -245,6 +250,7 @@ export function registerChatRoutes(app: FastifyInstance, context: AppContext) {
     const text = body.text == null || body.text === "" ? null : stringValue(body.text, 16000);
     const stickerId = body.stickerId == null ? null : stringValue(body.stickerId, 128);
     const attachmentIds = stringIds(body.attachmentIds ?? [], 5);
+    if (kanameEnabled() && actor.role === "guest" && (stickerId || attachmentIds.length)) fail(403,"guest_text","Гостю доступны только текстовые сообщения.");
     if (stickerId && (!STICKERS.has(stickerId) || text || attachmentIds.length)) invalid();
     if (!text && !stickerId && !attachmentIds.length) invalid();
     const { row, created } = await context.db.$transaction(async tx => {
@@ -289,6 +295,7 @@ export function registerChatRoutes(app: FastifyInstance, context: AppContext) {
 
   app.put<{ Params: { id: string; messageId: string }; Body: Record<string, unknown> }>(chatUrl + "/messages/:messageId/reactions", async request => {
     const actor = await requireActor(request, context);
+    if (kanameEnabled() && actor.role === "guest") fail(403, "guest_text", "Гостям доступна текстовая переписка.");
     const chatId = request.params.id;
     const messageId = cursor(request.params.messageId);
     const emoji = request.body?.emoji;
