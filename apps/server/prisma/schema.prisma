@@ -9,6 +9,10 @@ datasource db {
 }
 
 model Actor {
+  kanameSubject String?
+  kanameIssuer String?
+  @@unique([kanameIssuer, kanameSubject])
+  kanameSuspended Boolean @default(false)
   id           String       @id @default(uuid())
   login        String?      @unique
   displayName  String
@@ -25,6 +29,7 @@ model Actor {
 }
 
 model Session {
+  kanameSession Boolean @default(false)
   tokenHash String   @id
   actorId   String
   expiresAt DateTime
@@ -133,4 +138,12 @@ model ChatEvent {
   message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([chatId, id])
+}
+
+model KanameActivity {
+  subject String
+  day String
+  lastActiveAt DateTime
+  issuer String
+  @@id([issuer, subject, day])
 }

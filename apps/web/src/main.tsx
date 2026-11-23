@@ -1,3 +1,4 @@
+import { KanameAccount, useKaname } from "./Kaname";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Actor, ChatSummary, InviteKind, LiveEvent } from "@tsudoi/contracts";
@@ -26,6 +27,7 @@ function rowTime(iso: string) {
 }
 
 function Workspace({ actor, id, checkSession, logout }: { actor: Actor; id?: string; checkSession: () => Promise<void>; logout: () => Promise<void> }) {
+  const kaname = useKaname();
   const [list, setList] = useState<ChatSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [modal, setModal] = useState<"new" | "invites" | "profile" | null>(null);
@@ -100,7 +102,7 @@ function Workspace({ actor, id, checkSession, logout }: { actor: Actor; id?: str
   }, [id, list]);
   return <div ref={viewport} className={"workspace " + (id ? "show-chat" : "show-list")}>
     <aside className="sidebar" aria-label="Список чатов">
-      <div className="brand-bar"><Brand/>{actor.role === "admin" && import.meta.env.VITE_PROVISIONED_ACCOUNTS_ONLY !== "1" && <IconButton label="Приглашения" onClick={() => setModal("invites")}><KeyRound/></IconButton>}</div>
+      <div className="brand-bar"><Brand/>{actor.role === "admin" && !kaname?.enabled && import.meta.env.VITE_PROVISIONED_ACCOUNTS_ONLY !== "1" && <IconButton label="Приглашения" onClick={() => setModal("invites")}><KeyRound/></IconButton>}</div>
       <header className="sidebar-heading"><h1>Чаты</h1>{actor.role !== "guest" && <IconButton label="Новый чат" className="new-chat-button" onClick={() => setModal("new")}><SquarePen size={18}/></IconButton>}</header>
       <nav className="chat-list" aria-label="Чаты">{list.map(chat => <a key={chat.id} href={chatPath(chat.id)} onClick={e => {
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -122,8 +124,8 @@ function Workspace({ actor, id, checkSession, logout }: { actor: Actor; id?: str
     </main>}
     {modal === "new" && <NewChat actor={actor} close={() => setModal(null)}/>}
     {modal === "invites" && <Modal title="Приглашения на регистрацию" close={() => setModal(null)}><Invitations/></Modal>}
-    {modal === "profile" && <Modal title="Профиль" close={() => setModal(null)}><div className="profile-detail"><Avatar name={actor.displayName}/><strong>{actor.displayName}</strong></div>
-      {actor.role === "admin" && import.meta.env.VITE_PROVISIONED_ACCOUNTS_ONLY !== "1" && <button className="secondary" onClick={() => setModal("invites")}><KeyRound/>Приглашения</button>}
+    {modal === "profile" && <Modal title="Профиль" close={() => setModal(null)}><div className="profile-detail"><Avatar name={actor.displayName}/><strong>{actor.displayName}</strong></div><KanameAccount admin={actor.role === "admin"}/>
+      {actor.role === "admin" && !kaname?.enabled && import.meta.env.VITE_PROVISIONED_ACCOUNTS_ONLY !== "1" && <button className="secondary" onClick={() => setModal("invites")}><KeyRound/>Приглашения</button>}
       <button className="text-button danger" onClick={() => void logout().catch(err => setError(errorText(err)))}><LogOut/>Выйти</button></Modal>}
   </div>;
 }
@@ -165,9 +167,12 @@ function App() {
   }, [session]);
   useEffect(() => { void check(); }, [check]);
   const [path, token = ""] = url.split("#");
-  const kind = import.meta.env.VITE_PROVISIONED_ACCOUNTS_ONLY === "1" ? undefined : path.match(/^\/invite\/(account|guest)\/?$/)?.[1] as InviteKind | undefined;
+  const config = useKaname();
+  const invitation = path.match(/^\/invite\/(account|guest)\/?$/)?.[1] as InviteKind | undefined;
+  const kind = config?.enabled ? (invitation === "guest" && config.guestsEnabled ? invitation : undefined)
+    : import.meta.env.VITE_PROVISIONED_ACCOUNTS_ONLY === "1" ? undefined : invitation;
   const id = path.match(/^\/chat\/([^/]+)\/?$/)?.[1];
-  if (actor === undefined) return <main className="loading-screen"><Brand/>{notice ? <><ErrorNote message={notice}/><button className="secondary" onClick={() => void check()}>Повторить</button></> : <p role="status">Загрузка…</p>}</main>;
+  if (actor === undefined || !config) return <main className="loading-screen"><Brand/>{notice ? <><ErrorNote message={notice}/><button className="secondary" onClick={() => void check()}>Повторить</button></> : <p role="status">Загрузка…</p>}</main>;
   if (!actor || kind) return <Auth key={url} kind={kind} token={token} actor={actor} notice={notice} onSession={session}/>;
   return <Workspace key={actor.id} actor={actor} id={id} checkSession={check} logout={async () => { await api("/logout", "POST"); session(null); setNotice(""); navigate("/", true); }}/>;
 }

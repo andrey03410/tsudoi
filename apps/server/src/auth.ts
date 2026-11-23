@@ -1,3 +1,5 @@
+import { access, kanameEnabled, registerLogin } from "@kaname/service-client";
+import { registerKanamePanel, siteIdentity, recordActivity, type SiteActor } from "./kaname.js";
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import type { Actor, Invite, InviteAccepted, InviteKind, InvitePreview, IssuedInvite } from "@tsudoi/contracts";
@@ -98,10 +100,22 @@ export async function getActor(request: FastifyRequest, context: AppContext): Pr
   const now = context.now();
   const session = await context.db.session.findUnique({
     where: { tokenHash },
-    select: { expiresAt: true, actor: { select: actorFields } },
+    select: { expiresAt: true, kanameSession: true, actor: { select: { ...actorFields, kanameIssuer: true, kanameSubject: true, kanameSuspended: true } } },
   });
   if (!session || session.expiresAt <= now) return null;
-  if (session.actor.role !== "guest") return publicActor(session.actor);
+  if (session.actor.role !== "guest") {
+    if (!kanameEnabled()) return session.kanameSession ? null : publicActor(session.actor);
+    if (!session.kanameSession || session.actor.kanameIssuer !== process.env.KANAME_OIDC_ISSUER || session.actor.kanameSuspended || !session.actor.kanameSubject) return null;
+    const grant = await access("tsudoi", session.actor.kanameSubject).catch(error => {
+      if (error.statusCode === 403) return null;
+      throw error;
+    });
+    if (!grant) return null;
+    const actor: SiteActor = publicActor({ ...session.actor, role: grant.role === "user" ? "member" : "admin" });
+    actor.grant = grant;
+    return actor;
+  }
+  if (kanameEnabled() && process.env.KANAME_GUESTS !== "1") return null;
 
   const membership = await context.db.membership.findFirst({
     where: { actorId: session.actor.id, revokedAt: null, expiresAt: { gt: now } },
@@ -156,6 +170,7 @@ async function availableInvite(db: AuthStore, entry: { kind: InviteKind; tokenHa
 async function canManageInvites(context: AppContext, request: FastifyRequest, scope: InviteScope): Promise<Actor> {
   const actor = await requireActor(request, context);
   if (scope.kind === "account") {
+    if (kanameEnabled()) fail(403, "CENTRAL_ACCESS", "Постоянный доступ выдаётся в Kaname.");
     if (actor.role !== "admin") fail(403, "FORBIDDEN", "Приглашения для регистрации выдаёт администратор.");
     return actor;
   }
@@ -180,7 +195,7 @@ function registerInviteManagement(app: FastifyInstance, context: AppContext, kin
   });
 
   app.post<{ Params: InviteParams }>(path, async (request, reply): Promise<IssuedInvite> => {
-    if (process.env.PROVISIONED_ACCOUNTS_ONLY === "1") fail(403, "REGISTRATION_CLOSED", "Аккаунты создаёт администратор.");
+    if (kanameEnabled() ? (kind !== "guest" || process.env.KANAME_GUESTS !== "1") : process.env.PROVISIONED_ACCOUNTS_ONLY === "1") fail(403, "REGISTRATION_CLOSED", "Аккаунты создаёт администратор.");
     const scope = scopeOf(request.params);
     const actor = await canManageInvites(context, request, scope);
     const now = context.now();
@@ -292,9 +307,27 @@ async function acceptInvite(request: FastifyRequest, reply: FastifyReply, contex
 }
 
 export function registerAuthRoutes(app: FastifyInstance, context: AppContext) {
-  app.get("/api/me", async (request) => ({ actor: await getActor(request, context) }));
+  registerLogin(app, "tsudoi", async (grant, reply) => {
+    const role = grant.role === "user" ? "member" : "admin";
+    const actor = await context.db.actor.upsert({
+      where: { kanameIssuer_kanameSubject: siteIdentity(grant.subject) }, update: { role, displayName: grant.login },
+      create: { ...siteIdentity(grant.subject), displayName: grant.login, role },
+    });
+    if (actor.kanameSuspended) fail(403, "SUSPENDED", "Доступ к Tsudoi приостановлен.");
+    const token = newToken();
+    const expiresAt = new Date(context.now().getTime() + accountSessionLifetime);
+    await context.db.session.create({ data: { actorId: actor.id, expiresAt, kanameSession: true, tokenHash: digest(token) } });
+    setSessionCookie(reply, context, token, expiresAt);
+    await recordActivity(context, grant.subject);
+  });
+  registerKanamePanel(app, context);
+  app.get("/api/me", async request => {
+    const actor = await getActor(request, context);
+    return { actor: actor && publicActor(actor, actor.expiresAt ? new Date(actor.expiresAt) : null) };
+  });
 
   app.post("/api/login", { preHandler: attemptLimiter(context, 10) }, async (request, reply) => {
+    if (kanameEnabled()) fail(403, "CENTRAL_LOGIN", "Войдите через Kaname.");
     const body = bodyRecord(request);
     const login = loginValue(body.login);
     const password = passwordValue(body.password, process.env.PROVISIONED_ACCOUNTS_ONLY === "1" ? 1 : 8);
@@ -328,7 +361,7 @@ export function registerAuthRoutes(app: FastifyInstance, context: AppContext) {
     const actor = await requireActor(request, context);
     if (actor.role === "guest") fail(403, "FORBIDDEN", "Каталог доступен постоянным участникам.");
     const users = await context.db.actor.findMany({
-      where: { role: { in: ["admin", "member"] } },
+      where: { role: { in: ["admin", "member"] }, ...(kanameEnabled() ? {kanameIssuer:process.env.KANAME_OIDC_ISSUER!,kanameSubject:{not:null},kanameSuspended:false} : {}) },
       orderBy: [{ displayName: "asc" }, { id: "asc" }],
       select: actorFields,
     });
@@ -339,14 +372,14 @@ export function registerAuthRoutes(app: FastifyInstance, context: AppContext) {
   registerInviteManagement(app, context, "guest", "/api/chats/:id/invites");
 
   app.post("/api/invites/preview", { preHandler: attemptLimiter(context, 30) }, async (request): Promise<InvitePreview> => {
-    if (process.env.PROVISIONED_ACCOUNTS_ONLY === "1") fail(403, "REGISTRATION_CLOSED", "Аккаунты создаёт администратор.");
+    if (kanameEnabled() ? (bodyRecord(request).kind !== "guest" || process.env.KANAME_GUESTS !== "1") : process.env.PROVISIONED_ACCOUNTS_ONLY === "1") fail(403, "REGISTRATION_CLOSED", "Аккаунты создаёт администратор.");
     const entry = inviteInput(bodyRecord(request));
     const invite = await availableInvite(context.db, entry, context.now());
     return { kind: entry.kind, expiresAt: invite.expiresAt.toISOString(), chatId: invite.chat?.id, title: invite.chat?.title ?? undefined };
   });
 
   app.post("/api/invites/accept", { preHandler: attemptLimiter(context, 10) }, (request, reply) => {
-    if (process.env.PROVISIONED_ACCOUNTS_ONLY === "1") fail(403, "REGISTRATION_CLOSED", "Аккаунты создаёт администратор.");
+    if (kanameEnabled() ? (bodyRecord(request).kind !== "guest" || process.env.KANAME_GUESTS !== "1") : process.env.PROVISIONED_ACCOUNTS_ONLY === "1") fail(403, "REGISTRATION_CLOSED", "Аккаунты создаёт администратор.");
     return acceptInvite(request, reply, context);
   });
 }
