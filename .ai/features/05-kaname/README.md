@@ -1,8 +1,8 @@
 ---
 track: product
-stage: build
+stage: review
 branch: codex/05-kaname
-pr: null
+pr: https://github.com/andrey03410/tsudoi/pull/5
 ---
 # Единый доступ Kaname
 
